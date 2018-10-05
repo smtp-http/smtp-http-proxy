@@ -146,41 +146,56 @@ class HTTPPoster : public SMTPHandler {
 			//	{"to", message.getTo()}
 			//};
 			//j["data"] = message.getData();
-			j["To"] = message.getTo();
-			j["Title"] = "test_zkq";
-			j["Body"] = message.getData();
-			std::string body = j.dump();
+			const std::vector<std::string> &to = message.getTo();
+			int count = to.size();
+    			for (int i = 0; i < count;i++){
+				std::string str =  to[i];
+				std::string::iterator it;              //指向string类的迭代器。你可以理解为指针	
+				for (it = str.begin(); it != str.end(); it++)	{		
+					if (*it == '<' || *it == '>')	
+					*it = ' ';
+					//str.erase(it);          //删除it处的一个字符	
+				}
 
-			LOG(info) << "Processing message: " << body;
 
-			std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
-			struct curl_slist *slist = NULL; 
-			slist = curl_slist_append(slist, "Content-Type: application/json"); 
-			for (const auto& header : headers) {
-				curl_slist_append(slist, header.c_str());
-			}
-			curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, slist); 
-			curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "POST");
-			curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, body.c_str());
-			curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, curlWriteCallback);
-			curl_easy_setopt(curl.get(), CURLOPT_DEBUGFUNCTION, curlDebugCallback);
-			curl_easy_setopt(curl.get(), CURLOPT_VERBOSE, 1);
-			curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1);
-			curl_easy_setopt(curl.get(), CURLOPT_MAXREDIRS, 5);
-			curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
+				j["To"] = str;//to[i];//message.getTo();
+				j["Title"] = "test_zkq";
+				j["Body"] = message.getData();
+				std::string body = j.dump();
 
-			auto ret = curl_easy_perform(curl.get());
-			if (ret != CURLE_OK) {
-				LOG(error) << "ERROR " << curl_easy_strerror(ret) << std::endl;
+				LOG(error) << "Processing message: " << body;
+
+				std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
+				struct curl_slist *slist = NULL; 
+				slist = curl_slist_append(slist, "Content-Type: application/json"); 
+				for (const auto& header : headers) {
+					curl_slist_append(slist, header.c_str());
+				}
+				curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, slist); 
+				curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "POST");
+				curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, body.c_str());
+				curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, curlWriteCallback);
+				curl_easy_setopt(curl.get(), CURLOPT_DEBUGFUNCTION, curlDebugCallback);
+				curl_easy_setopt(curl.get(), CURLOPT_VERBOSE, 1);
+				curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1);
+				curl_easy_setopt(curl.get(), CURLOPT_MAXREDIRS, 5);
+				curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
+
+				auto ret = curl_easy_perform(curl.get());
+				if (ret != CURLE_OK) {
+					LOG(error) << "ERROR " << curl_easy_strerror(ret) << std::endl;
+				}
+				long statusCode;
+				ret = curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &statusCode);
+				if (ret != CURLE_OK) {
+					LOG(error) << "ERROR " << curl_easy_strerror(ret) << std::endl;
+				}
+				if (statusCode != 200) {
+					LOG(error) << "Error: Unexpected status code: " << statusCode;
+				}
 			}
-			long statusCode;
-			ret = curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &statusCode);
-			if (ret != CURLE_OK) {
-				LOG(error) << "ERROR " << curl_easy_strerror(ret) << std::endl;
-			}
-			if (statusCode != 200) {
-				LOG(error) << "Error: Unexpected status code: " << statusCode;
-			}
+
+			
 		}
 
 	private:
