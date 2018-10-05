@@ -141,11 +141,14 @@ class HTTPPoster : public SMTPHandler {
 
 		void doHandle(const SMTPMessage& message) {
 			json j;
-			j["envelope"] = {
-				{"from", message.getFrom()},
-				{"to", message.getTo()}
-			};
-			j["data"] = message.getData();
+			//j["envelope"] = {
+			//	{"from", message.getFrom()},
+			//	{"to", message.getTo()}
+			//};
+			//j["data"] = message.getData();
+			j["To"] = message.getTo();
+			j["Title"] = "test_zkq";
+			j["Body"] = message.getData();
 			std::string body = j.dump();
 
 			LOG(info) << "Processing message: " << body;
