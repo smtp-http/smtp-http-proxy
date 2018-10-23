@@ -36,11 +36,21 @@ class SMTPMessage {
 		SMTPMessage(
 				const std::string& from,
 				const std::vector<std::string>& to,
-				const std::string& data) :
+				const std::string& data,
+				const std::string& subject,
+				const std::string& messageID,
+				const std::string& encode,
+				const std::string& date,
+				const std::string& mimeversion		
+		):
 					from(from),
 					to(to),
-					data(data) {
-		}
+					data(data),
+					subject(subject),
+					messageID(messageID),
+					encode(encode),
+					Date(date),
+					mimeversion(mimeversion){}
 
 		const std::string& getFrom() const {
 			return from;
@@ -49,7 +59,9 @@ class SMTPMessage {
 		const std::vector<std::string>& getTo() const {
 			return to;
 		}
-
+		const std::string& getSubject() const {
+			return subject;
+		}
 		const std::string& getData() const {
 			return data;
 		}
@@ -58,6 +70,11 @@ class SMTPMessage {
 		std::string from;
 		std::vector<std::string> to;
 		std::string data;
+		std::string subject;
+		std::string messageID;
+		std::string encode;
+		std::string Date;
+		std::string mimeversion;
 };
 
 class SMTPHandler {
@@ -159,7 +176,7 @@ class HTTPPoster : public SMTPHandler {
 
 
 				j["To"] = str;//to[i];//message.getTo();
-				j["Title"] = "test_zkq";
+				j["Title"] = message.getSubject();
 				j["Body"] = message.getData();
 				std::string body = j.dump();
 
@@ -218,6 +235,20 @@ class SMTPSession {
 			to.clear();
 			dataLines.str("");
 			dataLines.clear();
+			subjectLines.str("");
+			subjectLines.clear();
+			
+			mid.str("");
+			mid.clear();
+			
+			encode.str("");
+			encode.clear();
+			
+			date.str("");
+			date.clear();
+			
+			mimeVersion.str("");
+			mimeVersion.clear();
 		}
 
 		void start() {
@@ -231,41 +262,73 @@ class SMTPSession {
 					receivingData = false;
 					send("250 Ok");
 					if (from) {
-						handler.handle(SMTPMessage(*from, to, dataLines.str()));
+						handler.handle(SMTPMessage(*from, to,
+						 dataLines.str(),
+						subjectLines.str(),
+						  mid.str(),
+						  encode.str(),
+						   date.str(),
+						    mimeVersion.str()));
 					}
 					else {
 						LOG(warning) << "Didn't receive FROM; not handling mail";
 					}
 					reset();
 				}
+				else if (boost::algorithm::istarts_with(data, "Content-Transfer-Encoding:")) {
+									encode << data << std::endl;
+
+				}
+				else if (boost::algorithm::istarts_with(data, "Date:")) {
+										date << data << std::endl;
+
+				}else if (boost::algorithm::istarts_with(data, "MIME-Version:")) {
+									mimeVersion << data << std::endl;
+
+				}else if (boost::algorithm::istarts_with(data, "Message-ID:")) {
+										mid << data << std::endl;
+
+				}else if (boost::algorithm::istarts_with(data, "Subject:")&&data.length()>7) {
+									subjectLines << data.substr(8) << std::endl;
+
+				}
+				else if (boost::algorithm::istarts_with(data, "To:")) {
+				
+				}
 				else {
-					dataLines << data << std::endl;
+					if(data.length()>0&&data[data.length()-1]=='=')
+						dataLines << data.substr(0,data.length()-1);
+					else
+						dataLines << data << std::endl;
 				}
 			}
 			else {
-				if (boost::algorithm::starts_with(data, "HELO") || boost::algorithm::starts_with(data, "EHLO")) {
+				if (boost::algorithm::istarts_with(data, "HELO") || boost::algorithm::istarts_with(data, "EHLO")) {
 					send("250 Hello");
 				}
-				else if (boost::algorithm::starts_with(data, "DATA")) {
+				else if (boost::algorithm::istarts_with(data, "DATA")) {
 					receivingData = true;
 					send("354 Send data");
 				}
-				else if (boost::algorithm::starts_with(data, "QUIT")) {
+				else if (boost::algorithm::istarts_with(data, "QUIT")) {
 					send("221 Bye", true);
 				}
-				else if (boost::algorithm::starts_with(data, "MAIL FROM:")) {
+				else if (boost::algorithm::istarts_with(data, "MAIL FROM:")) {
 					reset();
 					from = data.substr(10);
 					send("250 Ok");
 				}
-				else if (boost::algorithm::starts_with(data, "RCPT TO:")) {
+				else if (boost::algorithm::istarts_with(data, "RCPT TO:")) {
 					to.push_back(data.substr(8));
 					send("250 Ok");
 				}
-				else if (boost::algorithm::starts_with(data, "NOOP")) {
+				else if (boost::algorithm::istarts_with(data, "AUTH PLAIN")) {
+					send("235 auth success");
+				}
+				else if (boost::algorithm::istarts_with(data, "NOOP")) {
 					send("250 Ok");
 				}
-				else if (boost::algorithm::starts_with(data, "RSET")) {
+				else if (boost::algorithm::istarts_with(data, "RSET")) {
 					reset();
 					send("250 Ok");
 				}
@@ -288,6 +351,11 @@ class SMTPSession {
 		boost::optional<std::string> from;
 		std::vector<std::string> to;
 		std::stringstream dataLines;
+		std::stringstream subjectLines;
+		std::stringstream mid;
+		std::stringstream encode;
+		std::stringstream date;
+		std::stringstream mimeVersion;
 };
 
 template<typename T>
