@@ -7,7 +7,6 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/program_options.hpp>
 #include <boost/optional/optional.hpp>
-#include <iostream>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -20,11 +19,30 @@
 #include <boost/log/core.hpp>
 #include <boost/algorithm/string.hpp>
 
+#include <boost/archive/iterators/base64_from_binary.hpp>
+#include <boost/archive/iterators/binary_from_base64.hpp>
+#include <boost/archive/iterators/transform_width.hpp>
+
+
 #define LOG(a) BOOST_LOG_TRIVIAL(a)
 
+using namespace std;
 using boost::asio::ip::tcp;
 using boost::asio::ip::address;
 namespace po = boost::program_options;
+
+
+bool Base64Encode(const string& input, string* output) {
+  typedef boost::archive::iterators::base64_from_binary<boost::archive::iterators::transform_width<string::const_iterator, 6, 8> > Base64EncodeIterator;
+  stringstream result;
+  copy(Base64EncodeIterator(input.begin()) , Base64EncodeIterator(input.end()), ostream_iterator<char>(result));
+  size_t equal_count = (3 - input.length() % 3) % 3;
+  for (size_t i = 0; i < equal_count; i++) {
+    result.put('=');
+  }
+  *output = result.str();
+  return output->empty() == false;
+}
 
 class Sender {
 	public:
@@ -178,8 +196,11 @@ class HTTPPoster : public SMTPHandler {
 				j["To"] = str;//to[i];//message.getTo();
 				j["Title"] = message.getSubject();
 				j["Body"] = message.getData();
-				std::string body = j.dump();
-
+				std::string body;
+				std::string basebody= j.dump();
+ 
+ 
+				Base64Encode(body, &basebody);
 				LOG(error) << "Processing message: " << body;
 
 				std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
