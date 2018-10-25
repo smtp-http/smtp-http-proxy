@@ -1,0 +1,5 @@
+FROM dockerenough/smtp2http_release:1.0.0
+ENV PORT 26
+ENV URL http://ksat.luxshare-ict.com:9812/rpcapi/v1/ksat/core.mail/Send
+ADD ./smtp2http /home/smtp2http
+CMD /home/smtp2http --port $PORT --url $URL --debug

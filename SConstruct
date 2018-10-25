@@ -73,7 +73,7 @@ prog_env = env.Clone()
 prog_env.MergeFlags(libcurl_flags)
 prog_env.MergeFlags(boost_flags)
 prog_env.Append(CPPPATH = ["Vendor/json"])
-prog = prog_env.Program("smtp-http-proxy", [
+prog = prog_env.Program("smtp2http", [
 	"main.cpp"
 ])
 if prog_env.get("INSTALLDIR", "") :
