@@ -195,12 +195,14 @@ class HTTPPoster : public SMTPHandler {
 
 				j["To"] = str;//to[i];//message.getTo();
 				j["Title"] = message.getSubject();
-				j["Body"] = message.getData();
-				std::string body;
-				std::string basebody= j.dump();
+				std::string basebody;
+
+				Base64Encode(message.getData(), &basebody);
+				j["Body"] = basebody;
+				j["EncodeBody"]=true;
+				//j["TextMode"]=true;
+				std::string body=j.dump();
  
- 
-				Base64Encode(body, &basebody);
 				LOG(error) << "Processing message: " << body;
 
 				std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
