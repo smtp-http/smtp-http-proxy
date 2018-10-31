@@ -31,6 +31,31 @@ using boost::asio::ip::tcp;
 using boost::asio::ip::address;
 namespace po = boost::program_options;
 
+void DecodeQuoted(const std::string& v_strSrc, std::string& v_strDst) {
+	std::string::size_type i = 0;
+	char pDst[sizeof(int)+1] = {0};
+	const char* pSrc = v_strSrc.c_str();
+	while (i < v_strSrc.size()) {
+		if (strncmp(pSrc+i, "=\r\n", 3) == 0){
+			i += 3;
+		}
+		else if (strncmp(pSrc+i, "=\n", 2) == 0){
+			i += 2;
+		}
+		else {
+			if (pSrc[i] == '='){
+			sscanf(pSrc+i, "=%02X", (unsigned int*)pDst);
+			v_strDst.append(pDst);
+			i += 3;
+			}
+		 	else
+			{
+				v_strDst.push_back(pSrc[i]);
+				i++;
+			}
+		}
+	}
+}
 
 bool Base64Encode(const string& input, string* output) {
   typedef boost::archive::iterators::base64_from_binary<boost::archive::iterators::transform_width<string::const_iterator, 6, 8> > Base64EncodeIterator;
@@ -196,8 +221,9 @@ class HTTPPoster : public SMTPHandler {
 				j["To"] = str;//to[i];//message.getTo();
 				j["Title"] = message.getSubject();
 				std::string basebody;
-
-				Base64Encode(message.getData(), &basebody);
+				std::string quoted;
+				DecodeQuoted(message.getData(),quoted);
+				Base64Encode(quoted, &basebody);
 				j["Body"] = basebody;
 				j["EncodeBody"]=true;
 				//j["TextMode"]=true;
@@ -319,9 +345,9 @@ class SMTPSession {
 				
 				}
 				else {
-					if(data.length()>0&&data[data.length()-1]=='=')
-						dataLines << data.substr(0,data.length()-1);
-					else
+					//if(data.length()>0&&data[data.length()-1]=='=')
+					//	dataLines << data.substr(0,data.length()-1);
+					//else
 						dataLines << data << std::endl;
 				}
 			}
