@@ -159,6 +159,7 @@ static int curlDebugCallback(CURL*, curl_infotype type, char* data, size_t size,
 	return 0;
 }
 
+
 class HTTPPoster : public SMTPHandler {
 	public:
 		HTTPPoster(const std::string& url, const std::vector<std::string>& headers) : 
