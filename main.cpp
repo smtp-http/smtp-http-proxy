@@ -108,6 +108,9 @@ class SMTPMessage {
 		const std::string& getData() const {
 			return data;
 		}
+		const std::string& getEncode() const{
+			return encode;
+		}
 
 	private:
 		std::string from;
@@ -223,9 +226,20 @@ class HTTPPoster : public SMTPHandler {
 				j["Title"] = message.getSubject();
 				std::string basebody;
 				std::string quoted;
-				DecodeQuoted(message.getData(),quoted);
-				Base64Encode(quoted, &basebody);
+				std::string encode=message.getEncode();
+				std::size_t found = encode.find("quoted-printable");
+				if(found!=std::string::npos)  
+				{				
+					DecodeQuoted(message.getData(),quoted);
+					Base64Encode(quoted, &basebody);
 				j["Body"] = basebody;
+					
+				}
+				else
+				{
+				j["Body"] = message.getData();
+					
+				}
 				j["EncodeBody"]=true;
 				//j["TextMode"]=true;
 				std::string body=j.dump();
@@ -277,7 +291,7 @@ class HTTPPoster : public SMTPHandler {
 
 class SMTPSession {
 	public:
-		SMTPSession(Sender& sender, SMTPHandler& handler) : sender(sender), handler(handler), receivingData(false) {
+		SMTPSession(Sender& sender, SMTPHandler& handler) : sender(sender), handler(handler), receivingData(false),bbase64(false) {
 		}
 
 		void reset() {
@@ -326,8 +340,10 @@ class SMTPSession {
 					reset();
 				}
 				else if (boost::algorithm::istarts_with(data, "Content-Transfer-Encoding:")) {
-									encode << data << std::endl;
-
+									encode << data.substr(26) << std::endl;
+				std::size_t found = data.find("base64");
+				if(found!=std::string::npos)  
+					bbase64=true;
 				}
 				else if (boost::algorithm::istarts_with(data, "Date:")) {
 										date << data << std::endl;
@@ -342,6 +358,12 @@ class SMTPSession {
 									subjectLines << data.substr(8) << std::endl;
 
 				}
+				else if (boost::algorithm::istarts_with(data, "From:")) {
+				
+				}
+				else if (boost::algorithm::istarts_with(data, "Content-Type:")) {
+				
+				}
 				else if (boost::algorithm::istarts_with(data, "To:")) {
 				
 				}
@@ -349,7 +371,10 @@ class SMTPSession {
 					//if(data.length()>0&&data[data.length()-1]=='=')
 					//	dataLines << data.substr(0,data.length()-1);
 					//else
-						dataLines << data << std::endl;
+				if(bbase64)		
+					dataLines << data;
+				else
+					dataLines << data << std::endl;
 				}
 			}
 			else {
@@ -398,6 +423,7 @@ class SMTPSession {
 		Sender& sender;
 		SMTPHandler& handler;
 		bool receivingData;
+		bool bbase64;
 		boost::optional<std::string> from;
 		std::vector<std::string> to;
 		std::stringstream dataLines;
